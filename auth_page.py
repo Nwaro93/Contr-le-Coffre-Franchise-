@@ -99,6 +99,40 @@ def show_login_page():
             display: none !important;
         }
         
+        /* === BOUTON MANAGE APP EN BAS A DROITE === */
+        .stAppViewBlockContainer + div,
+        [data-testid="manage-app-button"],
+        .streamlit-footer,
+        div[class*="StatusWidget"],
+        div[class*="stStatusWidget"],
+        .reportview-container .main footer,
+        iframe[title="streamlit_status"],
+        ._container_gzau3_1,
+        ._link_gzau3_10,
+        ._container_1iGyS_1,
+        a[href*="streamlit.io"],
+        div:has(> a[href*="streamlit.io"]) {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        /* Cibler specifiquement le bouton Manage app de Streamlit Cloud */
+        .st-emotion-cache-1pbsqtx,
+        .st-emotion-cache-1egp75f,
+        div[data-testid="stBottom"],
+        div[data-testid="stBottomBlockContainer"],
+        .stBottom,
+        [class*="stBottom"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        /* Position fixe en bas a droite - Streamlit Cloud */
+        div[style*="position: fixed"][style*="bottom"],
+        div[style*="position: fixed"][style*="right"] {
+            display: none !important;
+        }
+        
         /* === STYLES LOGIN === */
         .login-container {
             max-width: 400px;
