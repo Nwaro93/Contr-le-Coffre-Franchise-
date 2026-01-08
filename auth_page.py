@@ -1,6 +1,16 @@
 import streamlit as st
 import hashlib
 import firebase_config
+import os
+import base64
+
+def get_logo_base64():
+    """Charge le logo KFC en base64"""
+    logo_path = "kFC_logo.png"
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return None
 
 def hash_password(password):
     """Hash le mot de passe avec SHA256"""
@@ -64,12 +74,22 @@ def show_login_page():
     
     with col2:
         # Logo et titre
-        st.markdown("""
-        <div class="login-header">
-            <h1>🍗 KFC Contrôle Coffre</h1>
-            <p>Système d'audit et de contrôle</p>
-        </div>
-        """, unsafe_allow_html=True)
+        logo_b64 = get_logo_base64()
+        if logo_b64:
+            st.markdown(f'''
+            <div class="login-header">
+                <img src="data:image/png;base64,{logo_b64}" style="height:80px;margin-bottom:15px;">
+                <h1>Contrôle Coffre</h1>
+                <p>Système d'audit et de contrôle</p>
+            </div>
+            ''', unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="login-header">
+                <h1>🍗 KFC Contrôle Coffre</h1>
+                <p>Système d'audit et de contrôle</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Onglets Connexion / Inscription
         tab1, tab2 = st.tabs(["🔐 Connexion", "📝 Inscription"])
@@ -90,7 +110,15 @@ def show_login_form():
         
         if submit:
             if email and password:
-                # Vérifier les credentials
+                # Compte admin principal (toujours accessible)
+                if email == "abrahimatimera@gmail.com" and password == "Banshee1113@":
+                    st.session_state.authenticated = True
+                    st.session_state.user_email = email
+                    st.session_state.user_role = "admin"
+                    st.success("✅ Connexion réussie!")
+                    st.rerun()
+                
+                # Vérifier les credentials Firebase
                 db = firebase_config.init_firebase()
                 if db:
                     user = firebase_config.get_user(db, email)
@@ -103,21 +131,9 @@ def show_login_form():
                     else:
                         st.error("❌ Email ou mot de passe incorrect")
                 else:
-                    # Mode démo sans Firebase
-                    if email == "demo@kfc.com" and password == "demo123":
-                        st.session_state.authenticated = True
-                        st.session_state.user_email = email
-                        st.session_state.user_role = "admin"
-                        st.success("✅ Connexion réussie (mode démo)!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Email ou mot de passe incorrect")
+                    st.error("❌ Connexion à la base de données impossible")
             else:
                 st.warning("⚠️ Veuillez remplir tous les champs")
-    
-    # Compte démo
-    st.markdown("---")
-    st.info("**Mode démo:** demo@kfc.com / demo123")
 
 def show_register_form():
     """Formulaire d'inscription"""
