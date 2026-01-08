@@ -133,6 +133,30 @@ def show_login_page():
             display: none !important;
         }
         
+        /* FORCE: Cacher tout element fixe en bas */
+        body > div:last-child,
+        #root > div:last-child > div:last-child,
+        .main + div,
+        div[class*="Block"]:last-child {
+            /* Ne pas cacher si c'est le contenu principal */
+        }
+        
+        /* Streamlit Cloud Manage App Button - FORCE */
+        iframe[title*="Manage"],
+        div:has(> iframe[title*="Manage"]),
+        [title*="Manage app"],
+        a[title*="Manage app"],
+        button[title*="Manage app"],
+        *[aria-label*="Manage app"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
+        
         /* === STYLES LOGIN === */
         .login-container {
             max-width: 400px;
@@ -163,6 +187,41 @@ def show_login_page():
             padding: 10px 24px;
         }
     </style>
+    
+    <script>
+        // Supprimer le bouton Manage App de Streamlit Cloud
+        function hideManageApp() {
+            // Chercher tous les elements contenant "Manage app"
+            document.querySelectorAll('*').forEach(el => {
+                if (el.innerText && el.innerText.includes('Manage app')) {
+                    el.style.display = 'none';
+                    el.remove();
+                }
+                if (el.title && el.title.includes('Manage')) {
+                    el.style.display = 'none';
+                    el.remove();
+                }
+            });
+            // Chercher les iframes
+            document.querySelectorAll('iframe').forEach(iframe => {
+                if (iframe.title && iframe.title.toLowerCase().includes('manage')) {
+                    iframe.parentElement.style.display = 'none';
+                }
+            });
+            // Elements fixes en bas a droite
+            document.querySelectorAll('div').forEach(div => {
+                const style = window.getComputedStyle(div);
+                if (style.position === 'fixed' && 
+                    parseInt(style.bottom) < 100 && 
+                    parseInt(style.right) < 100) {
+                    div.style.display = 'none';
+                }
+            });
+        }
+        // Executer au chargement et periodiquement
+        hideManageApp();
+        setInterval(hideManageApp, 500);
+    </script>
     """, unsafe_allow_html=True)
     
     # Container centré
