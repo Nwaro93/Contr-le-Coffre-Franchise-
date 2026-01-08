@@ -7,8 +7,12 @@ import base64
 import firebase_config
 import auth_page
 
-# --- Configuration de la page ---
-st.set_page_config(page_title="Controle et Audit du Coffre", layout="wide", page_icon="🍗")
+# --- Configuration de la page avec logo KFC ---
+logo_path = "kFC_logo.png"
+if os.path.exists(logo_path):
+    st.set_page_config(page_title="Controle et Audit du Coffre", layout="wide", page_icon=logo_path)
+else:
+    st.set_page_config(page_title="Controle et Audit du Coffre", layout="wide", page_icon="🍗")
 
 # Initialiser Firebase
 db = firebase_config.init_firebase()
