@@ -1,0 +1,167 @@
+import streamlit as st
+import hashlib
+import firebase_config
+
+def hash_password(password):
+    """Hash le mot de passe avec SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def init_session_state():
+    """Initialise les variables de session pour l'authentification"""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    if 'user_email' not in st.session_state:
+        st.session_state.user_email = None
+    if 'user_role' not in st.session_state:
+        st.session_state.user_role = None
+
+def show_login_page():
+    """Affiche la page de connexion"""
+    
+    # CSS pour la page de connexion
+    st.markdown("""
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h1 {
+            color: #333;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+        .login-header p {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 24px;
+            justify-content: center;
+        }
+        .stTabs [data-baseweb="tab"] {
+            padding: 10px 24px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Container centré
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # Logo et titre
+        st.markdown("""
+        <div class="login-header">
+            <h1>🍗 KFC Contrôle Coffre</h1>
+            <p>Système d'audit et de contrôle</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Onglets Connexion / Inscription
+        tab1, tab2 = st.tabs(["🔐 Connexion", "📝 Inscription"])
+        
+        with tab1:
+            show_login_form()
+        
+        with tab2:
+            show_register_form()
+
+def show_login_form():
+    """Formulaire de connexion"""
+    with st.form("login_form"):
+        email = st.text_input("📧 Email", placeholder="votre@email.com")
+        password = st.text_input("🔒 Mot de passe", type="password", placeholder="••••••••")
+        
+        submit = st.form_submit_button("Se connecter", use_container_width=True, type="primary")
+        
+        if submit:
+            if email and password:
+                # Vérifier les credentials
+                db = firebase_config.init_firebase()
+                if db:
+                    user = firebase_config.get_user(db, email)
+                    if user and user.get('password_hash') == hash_password(password):
+                        st.session_state.authenticated = True
+                        st.session_state.user_email = email
+                        st.session_state.user_role = user.get('role', 'user')
+                        st.success("✅ Connexion réussie!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Email ou mot de passe incorrect")
+                else:
+                    # Mode démo sans Firebase
+                    if email == "demo@kfc.com" and password == "demo123":
+                        st.session_state.authenticated = True
+                        st.session_state.user_email = email
+                        st.session_state.user_role = "admin"
+                        st.success("✅ Connexion réussie (mode démo)!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Email ou mot de passe incorrect")
+            else:
+                st.warning("⚠️ Veuillez remplir tous les champs")
+    
+    # Compte démo
+    st.markdown("---")
+    st.info("**Mode démo:** demo@kfc.com / demo123")
+
+def show_register_form():
+    """Formulaire d'inscription"""
+    with st.form("register_form"):
+        new_email = st.text_input("📧 Email", placeholder="votre@email.com", key="reg_email")
+        new_password = st.text_input("🔒 Mot de passe", type="password", placeholder="Min. 6 caractères", key="reg_pass")
+        confirm_password = st.text_input("🔒 Confirmer le mot de passe", type="password", placeholder="••••••••", key="reg_confirm")
+        
+        submit = st.form_submit_button("S'inscrire", use_container_width=True, type="primary")
+        
+        if submit:
+            if new_email and new_password and confirm_password:
+                if len(new_password) < 6:
+                    st.error("❌ Le mot de passe doit contenir au moins 6 caractères")
+                elif new_password != confirm_password:
+                    st.error("❌ Les mots de passe ne correspondent pas")
+                else:
+                    db = firebase_config.init_firebase()
+                    if db:
+                        # Vérifier si l'utilisateur existe déjà
+                        existing_user = firebase_config.get_user(db, new_email)
+                        if existing_user:
+                            st.error("❌ Cet email est déjà utilisé")
+                        else:
+                            # Créer l'utilisateur
+                            success = firebase_config.add_user(db, new_email, hash_password(new_password))
+                            if success:
+                                st.success("✅ Compte créé! Vous pouvez maintenant vous connecter.")
+                            else:
+                                st.error("❌ Erreur lors de la création du compte")
+                    else:
+                        st.warning("⚠️ Firebase non configuré. Utilisez le compte démo.")
+            else:
+                st.warning("⚠️ Veuillez remplir tous les champs")
+
+def show_logout_button():
+    """Affiche le bouton de déconnexion dans la sidebar"""
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown(f"👤 **{st.session_state.user_email}**")
+        if st.button("🚪 Déconnexion", use_container_width=True):
+            st.session_state.authenticated = False
+            st.session_state.user_email = None
+            st.session_state.user_role = None
+            st.rerun()
+
+def require_auth(func):
+    """Décorateur pour protéger une fonction avec authentification"""
+    def wrapper(*args, **kwargs):
+        if not st.session_state.get('authenticated', False):
+            show_login_page()
+            st.stop()
+        return func(*args, **kwargs)
+    return wrapper
