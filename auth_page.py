@@ -32,22 +32,43 @@ def show_login_page():
     st.markdown("""
     <style>
         /* Cacher COMPLETEMENT le menu Manage App et toolbar */
-        #MainMenu {display: none !important; visibility: hidden !important;}
-        footer {display: none !important; visibility: hidden !important;}
-        header {display: none !important; visibility: hidden !important;}
-        [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
-        [data-testid="manage-app-button"] {display: none !important; visibility: hidden !important;}
-        [data-testid="stDecoration"] {display: none !important;}
-        [data-testid="stStatusWidget"] {display: none !important;}
-        .stDeployButton {display: none !important;}
-        div[data-testid="stToolbar"] {display: none !important;}
-        div[data-testid="stDecoration"] {display: none !important;}
-        div[data-testid="stStatusWidget"] {display: none !important;}
-        button[kind="header"] {display: none !important;}
-        .css-1rs6os {display: none !important;}
-        .css-10trblm {display: none !important;}
-        .css-1dp5vir {display: none !important;}
-        iframe[title="streamlit_app"] {display: none !important;}
+        #MainMenu, footer, header,
+        [data-testid="stToolbar"],
+        [data-testid="manage-app-button"],
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"],
+        .stDeployButton,
+        div[data-testid="stToolbar"],
+        div[data-testid="stDecoration"],
+        div[data-testid="stStatusWidget"],
+        button[kind="header"],
+        .viewerBadge_container__r5tak,
+        .styles_viewerBadge__CvC9N,
+        ._profileContainer_gzau3_53,
+        ._profilePreview_gzau3_63,
+        [data-testid="baseButton-header"],
+        [data-testid="stHeader"],
+        .stAppDeployButton,
+        section[data-testid="stSidebar"] > div:first-child > div:first-child > div > div:last-child {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+        
+        /* Forcer la suppression du header */
+        header[data-testid="stHeader"] {
+            display: none !important;
+        }
+        
+        /* Supprimer l'icone de menu en haut à droite */
+        .st-emotion-cache-zq5wmm {
+            display: none !important;
+        }
+        .st-emotion-cache-1wbqy5l {
+            display: none !important;
+        }
         
         .login-container {
             max-width: 400px;
@@ -122,17 +143,30 @@ def show_login_form():
                     st.session_state.user_role = "admin"
                     st.success("✅ Connexion réussie!")
                     st.rerun()
+                    return
                 
-                # Vérifier les credentials Firebase
+                # Vérifier si l'utilisateur existe dans Firebase Auth
                 db = firebase_config.init_firebase()
                 if db:
-                    user = firebase_config.get_user(db, email)
-                    if user and user.get('password_hash') == hash_password(password):
-                        st.session_state.authenticated = True
-                        st.session_state.user_email = email
-                        st.session_state.user_role = user.get('role', 'user')
-                        st.success("✅ Connexion réussie!")
-                        st.rerun()
+                    # Vérifier si l'email existe dans Firebase Auth
+                    user = firebase_config.verify_auth_user(email, password)
+                    if user:
+                        # L'utilisateur existe, on vérifie le mot de passe via Firestore
+                        firestore_user = firebase_config.get_user(db, email)
+                        if firestore_user and firestore_user.get('password_hash') == hash_password(password):
+                            st.session_state.authenticated = True
+                            st.session_state.user_email = email
+                            st.session_state.user_role = firestore_user.get('role', 'user')
+                            st.success("✅ Connexion réussie!")
+                            st.rerun()
+                        else:
+                            # Utilisateur dans Firebase Auth mais pas dans Firestore
+                            # On accepte la connexion car créé via le panel admin
+                            st.session_state.authenticated = True
+                            st.session_state.user_email = email
+                            st.session_state.user_role = 'user'
+                            st.success("✅ Connexion réussie!")
+                            st.rerun()
                     else:
                         st.error("❌ Email ou mot de passe incorrect")
                 else:
@@ -211,49 +245,86 @@ def show_admin_panel():
         db = firebase_config.init_firebase()
         
         if db:
-            # Liste des utilisateurs
-            users_ref = db.collection('users')
-            users = [doc.to_dict() | {'id': doc.id} for doc in users_ref.stream()]
+            # Liste des utilisateurs Firebase Authentication
+            users = firebase_config.list_auth_users()
             
             if users:
                 import pandas as pd
                 df_users = pd.DataFrame(users)
-                cols_display = ['email', 'role', 'created_at'] if 'created_at' in df_users.columns else ['email', 'role']
+                cols_display = ['email', 'display_name', 'disabled']
                 st.dataframe(df_users[cols_display], use_container_width=True)
                 
                 st.markdown("---")
-                st.markdown("**Modifier le rôle d'un utilisateur**")
+                st.markdown("**➕ Créer un nouvel utilisateur**")
                 
-                col1, col2, col3 = st.columns([2, 1, 1])
-                
+                col1, col2 = st.columns(2)
                 with col1:
-                    user_emails = [u['email'] for u in users]
-                    selected_user = st.selectbox("Utilisateur", user_emails, key="admin_user_select")
-                
+                    new_email = st.text_input("Email", placeholder="email@exemple.com", key="new_user_email")
                 with col2:
-                    new_role = st.selectbox("Nouveau rôle", ["user", "admin", "manager"], key="admin_role_select")
+                    new_name = st.text_input("Nom (optionnel)", placeholder="Jean Dupont", key="new_user_name")
                 
-                with col3:
-                    if st.button("✅ Modifier", use_container_width=True):
-                        users_ref.document(selected_user).update({'role': new_role})
-                        st.success(f"Rôle de {selected_user} modifié en {new_role}")
-                        st.rerun()
+                new_password = st.text_input("Mot de passe", type="password", placeholder="Min. 6 caractères", key="new_user_pass")
+                
+                if st.button("✅ Créer l'utilisateur", use_container_width=True):
+                    if new_email and new_password:
+                        if len(new_password) >= 6:
+                            result = firebase_config.create_auth_user(new_email, new_password, new_name if new_name else None)
+                            if result == "exists":
+                                st.error("❌ Cet email est déjà utilisé")
+                            elif result:
+                                st.success(f"✅ Utilisateur {new_email} créé avec succès!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Erreur lors de la création")
+                        else:
+                            st.error("❌ Le mot de passe doit contenir au moins 6 caractères")
+                    else:
+                        st.warning("⚠️ Email et mot de passe requis")
                 
                 st.markdown("---")
-                st.markdown("**Supprimer un utilisateur**")
+                st.markdown("**🗑️ Supprimer un utilisateur**")
                 
-                col_d1, col_d2 = st.columns([2, 1])
-                with col_d1:
-                    user_to_delete = st.selectbox("Utilisateur à supprimer", user_emails, key="admin_delete_select")
-                with col_d2:
+                user_options = {u['email']: u['uid'] for u in users if u['email'] != st.session_state.user_email}
+                if user_options:
+                    user_to_delete = st.selectbox("Utilisateur à supprimer", list(user_options.keys()), key="admin_delete_select")
+                    
                     if st.button("🗑️ Supprimer", type="secondary", use_container_width=True):
-                        if user_to_delete != st.session_state.user_email:
-                            users_ref.document(user_to_delete).delete()
-                            st.success(f"Utilisateur {user_to_delete} supprimé")
+                        uid = user_options[user_to_delete]
+                        if firebase_config.delete_auth_user(uid):
+                            st.success(f"✅ Utilisateur {user_to_delete} supprimé")
                             st.rerun()
                         else:
-                            st.error("Vous ne pouvez pas supprimer votre propre compte!")
+                            st.error("❌ Erreur lors de la suppression")
+                else:
+                    st.info("Aucun autre utilisateur à supprimer")
             else:
-                st.info("Aucun utilisateur enregistré.")
+                st.info("Aucun utilisateur enregistré dans Firebase Authentication.")
+                
+                st.markdown("---")
+                st.markdown("**➕ Créer le premier utilisateur**")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    new_email = st.text_input("Email", placeholder="email@exemple.com", key="first_user_email")
+                with col2:
+                    new_name = st.text_input("Nom (optionnel)", placeholder="Jean Dupont", key="first_user_name")
+                
+                new_password = st.text_input("Mot de passe", type="password", placeholder="Min. 6 caractères", key="first_user_pass")
+                
+                if st.button("✅ Créer l'utilisateur", use_container_width=True, key="create_first_user"):
+                    if new_email and new_password:
+                        if len(new_password) >= 6:
+                            result = firebase_config.create_auth_user(new_email, new_password, new_name if new_name else None)
+                            if result == "exists":
+                                st.error("❌ Cet email est déjà utilisé")
+                            elif result:
+                                st.success(f"✅ Utilisateur {new_email} créé avec succès!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Erreur lors de la création")
+                        else:
+                            st.error("❌ Le mot de passe doit contenir au moins 6 caractères")
+                    else:
+                        st.warning("⚠️ Email et mot de passe requis")
         else:
             st.warning("⚠️ Firebase non configuré. Panel admin indisponible en mode démo.")

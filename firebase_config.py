@@ -1,5 +1,5 @@
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, auth
 import streamlit as st
 import json
 import os
@@ -33,6 +33,67 @@ def init_firebase():
     except Exception:
         # Erreur silencieuse - retourne None pour utiliser le mode hors ligne
         return None
+
+def list_auth_users():
+    """Liste tous les utilisateurs de Firebase Authentication"""
+    try:
+        if firebase_admin._apps:
+            users = []
+            page = auth.list_users()
+            while page:
+                for user in page.users:
+                    users.append({
+                        'uid': user.uid,
+                        'email': user.email,
+                        'display_name': user.display_name or '',
+                        'disabled': user.disabled,
+                        'created_at': str(user.user_metadata.creation_timestamp) if user.user_metadata else ''
+                    })
+                page = page.get_next_page()
+            return users
+    except Exception as e:
+        st.error(f"Erreur: {e}")
+    return []
+
+def create_auth_user(email, password, display_name=None):
+    """Crée un utilisateur dans Firebase Authentication"""
+    try:
+        if firebase_admin._apps:
+            user = auth.create_user(
+                email=email,
+                password=password,
+                display_name=display_name
+            )
+            return user
+    except auth.EmailAlreadyExistsError:
+        return "exists"
+    except Exception as e:
+        st.error(f"Erreur: {e}")
+    return None
+
+def delete_auth_user(uid):
+    """Supprime un utilisateur de Firebase Authentication"""
+    try:
+        if firebase_admin._apps:
+            auth.delete_user(uid)
+            return True
+    except Exception as e:
+        st.error(f"Erreur: {e}")
+    return False
+
+def verify_auth_user(email, password):
+    """Vérifie les credentials d'un utilisateur Firebase Auth"""
+    # Note: Firebase Admin SDK ne peut pas vérifier les mots de passe directement
+    # On doit utiliser Firestore pour stocker les hash de mots de passe
+    # ou utiliser Firebase Auth REST API
+    try:
+        if firebase_admin._apps:
+            user = auth.get_user_by_email(email)
+            if user and not user.disabled:
+                return user
+    except:
+        pass
+    return None
 
 def get_users_collection(db):
     """Retourne la collection des utilisateurs"""
