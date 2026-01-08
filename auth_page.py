@@ -28,15 +28,26 @@ def init_session_state():
 def show_login_page():
     """Affiche la page de connexion"""
     
-    # CSS pour la page de connexion
+    # CSS pour la page de connexion - Masquer TOUS les éléments Streamlit
     st.markdown("""
     <style>
-        /* Cacher le menu Manage App sur la page de connexion */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        [data-testid="stToolbar"] {visibility: hidden;}
-        [data-testid="manage-app-button"] {display: none;}
+        /* Cacher COMPLETEMENT le menu Manage App et toolbar */
+        #MainMenu {display: none !important; visibility: hidden !important;}
+        footer {display: none !important; visibility: hidden !important;}
+        header {display: none !important; visibility: hidden !important;}
+        [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
+        [data-testid="manage-app-button"] {display: none !important; visibility: hidden !important;}
+        [data-testid="stDecoration"] {display: none !important;}
+        [data-testid="stStatusWidget"] {display: none !important;}
+        .stDeployButton {display: none !important;}
+        div[data-testid="stToolbar"] {display: none !important;}
+        div[data-testid="stDecoration"] {display: none !important;}
+        div[data-testid="stStatusWidget"] {display: none !important;}
+        button[kind="header"] {display: none !important;}
+        .css-1rs6os {display: none !important;}
+        .css-10trblm {display: none !important;}
+        .css-1dp5vir {display: none !important;}
+        iframe[title="streamlit_app"] {display: none !important;}
         
         .login-container {
             max-width: 400px;
