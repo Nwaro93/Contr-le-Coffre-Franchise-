@@ -102,14 +102,8 @@ def show_login_page():
             </div>
             """, unsafe_allow_html=True)
         
-        # Onglets Connexion / Inscription
-        tab1, tab2 = st.tabs(["🔐 Connexion", "📝 Inscription"])
-        
-        with tab1:
-            show_login_form()
-        
-        with tab2:
-            show_register_form()
+        # Formulaire de connexion uniquement
+        show_login_form()
 
 def show_login_form():
     """Formulaire de connexion"""
