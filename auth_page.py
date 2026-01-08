@@ -151,11 +151,17 @@ def show_logout_button():
     with st.sidebar:
         st.markdown("---")
         st.markdown(f"👤 **{st.session_state.user_email}**")
+        if st.session_state.get('user_role') == 'admin':
+            st.markdown("🔑 *Administrateur*")
         if st.button("🚪 Déconnexion", use_container_width=True):
             st.session_state.authenticated = False
             st.session_state.user_email = None
             st.session_state.user_role = None
             st.rerun()
+
+def is_admin():
+    """Vérifie si l'utilisateur connecté est admin"""
+    return st.session_state.get('user_role') == 'admin'
 
 def require_auth(func):
     """Décorateur pour protéger une fonction avec authentification"""
@@ -165,3 +171,61 @@ def require_auth(func):
             st.stop()
         return func(*args, **kwargs)
     return wrapper
+
+def show_admin_panel():
+    """Affiche le panneau d'administration (réservé aux admins)"""
+    if st.session_state.get('user_role') != 'admin':
+        return
+    
+    with st.expander("🔧 Panneau Administration"):
+        st.markdown("### Gestion des utilisateurs")
+        
+        db = firebase_config.init_firebase()
+        
+        if db:
+            # Liste des utilisateurs
+            users_ref = db.collection('users')
+            users = [doc.to_dict() | {'id': doc.id} for doc in users_ref.stream()]
+            
+            if users:
+                import pandas as pd
+                df_users = pd.DataFrame(users)
+                cols_display = ['email', 'role', 'created_at'] if 'created_at' in df_users.columns else ['email', 'role']
+                st.dataframe(df_users[cols_display], use_container_width=True)
+                
+                st.markdown("---")
+                st.markdown("**Modifier le rôle d'un utilisateur**")
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                
+                with col1:
+                    user_emails = [u['email'] for u in users]
+                    selected_user = st.selectbox("Utilisateur", user_emails, key="admin_user_select")
+                
+                with col2:
+                    new_role = st.selectbox("Nouveau rôle", ["user", "admin", "manager"], key="admin_role_select")
+                
+                with col3:
+                    if st.button("✅ Modifier", use_container_width=True):
+                        users_ref.document(selected_user).update({'role': new_role})
+                        st.success(f"Rôle de {selected_user} modifié en {new_role}")
+                        st.rerun()
+                
+                st.markdown("---")
+                st.markdown("**Supprimer un utilisateur**")
+                
+                col_d1, col_d2 = st.columns([2, 1])
+                with col_d1:
+                    user_to_delete = st.selectbox("Utilisateur à supprimer", user_emails, key="admin_delete_select")
+                with col_d2:
+                    if st.button("🗑️ Supprimer", type="secondary", use_container_width=True):
+                        if user_to_delete != st.session_state.user_email:
+                            users_ref.document(user_to_delete).delete()
+                            st.success(f"Utilisateur {user_to_delete} supprimé")
+                            st.rerun()
+                        else:
+                            st.error("Vous ne pouvez pas supprimer votre propre compte!")
+            else:
+                st.info("Aucun utilisateur enregistré.")
+        else:
+            st.warning("⚠️ Firebase non configuré. Panel admin indisponible en mode démo.")

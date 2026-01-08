@@ -626,37 +626,44 @@ with st.expander("📜 Historique des Controles"):
             
             st.dataframe(df_display, use_container_width=True)
             
-            st.markdown("---")
-            st.markdown("**🗑️ Supprimer un audit**")
-            
-            col_del1, col_del2 = st.columns([2, 1])
-            
-            with col_del1:
-                # Sélecteur pour choisir l'audit à supprimer
-                options = [f"ID {i+1} - {df.iloc[i]['Restaurant']} ({df.iloc[i]['Date']})" for i in range(len(df))]
-                selected = st.selectbox("Selectionner l'audit a supprimer", options, key="delete_select")
-            
-            with col_del2:
-                if st.button("❌ Supprimer", type="secondary", use_container_width=True):
-                    # Extraire l'index de l'audit sélectionné
-                    idx = int(selected.split(" ")[1]) - 1
-                    df = df.drop(df.index[idx]).reset_index(drop=True)
-                    
-                    if len(df) > 0:
-                        df.to_csv("historique_kfc.csv", index=False)
-                    else:
-                        os.remove("historique_kfc.csv")
-                    
-                    st.success(f"✅ Audit supprime!")
+            # Section suppression (Admin uniquement)
+            if auth_page.is_admin():
+                st.markdown("---")
+                st.markdown("**🗑️ Supprimer un audit** (Admin uniquement)")
+                
+                col_del1, col_del2 = st.columns([2, 1])
+                
+                with col_del1:
+                    # Sélecteur pour choisir l'audit à supprimer
+                    options = [f"ID {i+1} - {df.iloc[i]['Restaurant']} ({df.iloc[i]['Date']})" for i in range(len(df))]
+                    selected = st.selectbox("Selectionner l'audit a supprimer", options, key="delete_select")
+                
+                with col_del2:
+                    if st.button("❌ Supprimer", type="secondary", use_container_width=True):
+                        # Extraire l'index de l'audit sélectionné
+                        idx = int(selected.split(" ")[1]) - 1
+                        df = df.drop(df.index[idx]).reset_index(drop=True)
+                        
+                        if len(df) > 0:
+                            df.to_csv("historique_kfc.csv", index=False)
+                        else:
+                            os.remove("historique_kfc.csv")
+                        
+                        st.success(f"✅ Audit supprime!")
+                        st.rerun()
+                
+                # Bouton pour tout supprimer
+                st.markdown("---")
+                if st.button("🗑️ Supprimer tout l'historique", type="secondary"):
+                    os.remove("historique_kfc.csv")
+                    st.success("✅ Historique completement supprime!")
                     st.rerun()
-            
-            # Bouton pour tout supprimer
-            st.markdown("---")
-            if st.button("🗑️ Supprimer tout l'historique", type="secondary"):
-                os.remove("historique_kfc.csv")
-                st.success("✅ Historique completement supprime!")
-                st.rerun()
+            else:
+                st.info("🔒 Seul l'administrateur peut supprimer les archives.")
         else:
             st.info("Aucun historique disponible.")
     else:
         st.info("Aucun historique disponible.")
+
+# --- PANNEAU ADMIN ---
+auth_page.show_admin_panel()
