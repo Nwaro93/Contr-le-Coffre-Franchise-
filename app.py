@@ -253,8 +253,17 @@ def generate_pdf(data):
     pdf.ln()
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(95, 6, f"Especes: {data['PC_Especes']:.2f} EUR")
-    pdf.cell(95, 6, f"Factures: {data['PC_Factures']:.2f} EUR")
+    pdf.cell(95, 6, f"Factures (cumul): {data['PC_Factures']:.2f} EUR")
     pdf.ln()
+    # Detail des factures
+    if data.get('Factures_Detail'):
+        factures = data['Factures_Detail']
+        factures_non_zero = [(i+1, f) for i, f in enumerate(factures) if f > 0]
+        if factures_non_zero:
+            pdf.set_font("Helvetica", "I", 9)
+            detail_text = " | ".join([f"Fact.{num}: {val:.2f}" for num, val in factures_non_zero])
+            pdf.cell(0, 5, f"   Detail: {detail_text}")
+            pdf.ln()
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(95, 6, f"Total PC: {data['Val_PC']:.2f} EUR")
     pdf.ln(8)
@@ -264,8 +273,11 @@ def generate_pdf(data):
     pdf.cell(0, 8, "CAISSONS", border=1, fill=True, align='L')
     pdf.ln()
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(95, 6, f"Billets: {data['Caissons_Billets']:.2f} EUR")
-    pdf.cell(95, 6, f"Pieces: {data['Caissons_Pieces']:.2f} EUR")
+    pdf.cell(63, 6, f"Caissons 60EUR (x{data.get('Nb_Caissons_60', 0)}): {data.get('Val_Caissons_60', 0):.2f} EUR")
+    pdf.cell(63, 6, f"Caissons 80EUR (x{data.get('Nb_Caissons_80', 0)}): {data.get('Val_Caissons_80', 0):.2f} EUR")
+    pdf.cell(63, 6, f"Caissons 100EUR (x{data.get('Nb_Caissons_100', 0)}): {data.get('Val_Caissons_100', 0):.2f} EUR")
+    pdf.ln()
+    pdf.cell(95, 6, f"Montant libre: {data.get('Caisson_Libre', 0):.2f} EUR")
     pdf.ln()
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(95, 6, f"Total Caissons: {data['Val_Caissons']:.2f} EUR")
@@ -441,18 +453,24 @@ with col_right:
     # Section Petite Caisse
     st.markdown('<div class="section-box"><div class="section-title">💰 Petite Caisse</div>', unsafe_allow_html=True)
     
-    st.markdown("**Especes et Factures**")
-    col_pce, col_pcf = st.columns(2)
-    with col_pce:
-        pc_especes = st.number_input("💵 Especes (EUR)", min_value=0.0, value=0.0, step=5.0, format="%.2f", key="pc_esp")
-    with col_pcf:
-        pc_factures = st.number_input("🧾 Factures (EUR)", min_value=0.0, value=0.0, step=5.0, format="%.2f", key="pc_fact")
-    val_pc = pc_especes + pc_factures
+    st.markdown("**Espèces**")
+    pc_especes = st.number_input("💵 Espèces (EUR)", min_value=0.0, value=0.0, step=5.0, format="%.2f", key="pc_esp")
+    
+    st.markdown("**Factures (saisir jusqu'à 5 factures)**")
+    cols_fact = st.columns(5)
+    factures = []
+    for i in range(5):
+        with cols_fact[i]:
+            fact_val = st.number_input(f"Fact. {i+1}", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"facture_{i+1}")
+            factures.append(fact_val)
+    
+    total_factures = sum(factures)
+    val_pc = pc_especes + total_factures
     
     st.markdown(f"""
     <table class="data-table">
-        <tr><td>Especes</td><td>{pc_especes:.2f} EUR</td></tr>
-        <tr><td>Factures</td><td>{pc_factures:.2f} EUR</td></tr>
+        <tr><td>Espèces</td><td>{pc_especes:.2f} EUR</td></tr>
+        <tr><td>Factures (cumul)</td><td>{total_factures:.2f} EUR</td></tr>
         <tr class="total"><td>Total Petite Caisse</td><td>{val_pc:.2f} EUR</td></tr>
     </table>
     """, unsafe_allow_html=True)
@@ -461,35 +479,29 @@ with col_right:
 # === SECTION CAISSONS (pleine largeur) ===
 st.markdown('<div class="section-box"><div class="section-title">🗃️ Caissons (Tiroirs-caisses)</div>', unsafe_allow_html=True)
 
-# Billets dans les caissons
-st.markdown("**Billets dans les caissons** *(nombre de billets)*")
-cols_cb = st.columns(5)
-q_caissons_billets = {}
-for i, (denom, val) in enumerate(VALEURS_BILLETS.items()):
-    with cols_cb[i]:
-        q_caissons_billets[denom] = st.number_input(f"{denom}", min_value=0, value=0, key=f"cb_{denom}", help=f"Valeur: {val} EUR")
-caissons_billets = calc_billets(q_caissons_billets)
+st.markdown("**Nombre de caissons par montant**")
+cols_caissons = st.columns(4)
 
-# Pièces dans les caissons
-st.markdown("**Pieces dans les caissons** *(nombre de pieces)*")
-pieces_list_cais = list(VALEURS_PIECES.items())
-cols_cp1 = st.columns(4)
-q_caissons_pieces = {}
-for i, (denom, val) in enumerate(pieces_list_cais[:4]):
-    with cols_cp1[i]:
-        q_caissons_pieces[denom] = st.number_input(f"{denom}", min_value=0, value=0, key=f"cp_{denom}", help=f"Valeur: {val} EUR")
-cols_cp2 = st.columns(4)
-for i, (denom, val) in enumerate(pieces_list_cais[4:]):
-    with cols_cp2[i]:
-        q_caissons_pieces[denom] = st.number_input(f"{denom}", min_value=0, value=0, key=f"cp_{denom}", help=f"Valeur: {val} EUR")
-caissons_pieces = calc_pieces(q_caissons_pieces)
+with cols_caissons[0]:
+    nb_caissons_60 = st.number_input("Caissons 60€", min_value=0, value=0, key="caisson_60", help="Nombre de caissons à 60€")
+with cols_caissons[1]:
+    nb_caissons_80 = st.number_input("Caissons 80€", min_value=0, value=0, key="caisson_80", help="Nombre de caissons à 80€")
+with cols_caissons[2]:
+    nb_caissons_100 = st.number_input("Caissons 100€", min_value=0, value=0, key="caisson_100", help="Nombre de caissons à 100€")
+with cols_caissons[3]:
+    caisson_libre = st.number_input("Montant libre (EUR)", min_value=0.0, value=0.0, step=10.0, format="%.2f", key="caisson_libre", help="Montant personnalisé")
 
-val_caissons = caissons_billets + caissons_pieces
+val_caissons_60 = nb_caissons_60 * 60
+val_caissons_80 = nb_caissons_80 * 80
+val_caissons_100 = nb_caissons_100 * 100
+val_caissons = val_caissons_60 + val_caissons_80 + val_caissons_100 + caisson_libre
 
 st.markdown(f"""
 <table class="data-table">
-    <tr><td>Billets caissons</td><td>{caissons_billets:.2f} EUR</td></tr>
-    <tr><td>Pieces caissons</td><td>{caissons_pieces:.2f} EUR</td></tr>
+    <tr><td>Caissons 60€ (x{nb_caissons_60})</td><td>{val_caissons_60:.2f} EUR</td></tr>
+    <tr><td>Caissons 80€ (x{nb_caissons_80})</td><td>{val_caissons_80:.2f} EUR</td></tr>
+    <tr><td>Caissons 100€ (x{nb_caissons_100})</td><td>{val_caissons_100:.2f} EUR</td></tr>
+    <tr><td>Montant libre</td><td>{caisson_libre:.2f} EUR</td></tr>
     <tr class="total"><td>Total Caissons</td><td>{val_caissons:.2f} EUR</td></tr>
 </table>
 """, unsafe_allow_html=True)
@@ -588,10 +600,16 @@ if validate_btn or pdf_btn or auto_action:
             "Val_Pieces_Coffre": total_pieces_coffre,
             "Val_Fond": val_fond,
             "PC_Especes": pc_especes,
-            "PC_Factures": pc_factures,
+            "PC_Factures": total_factures,
+            "Factures_Detail": factures,
             "Val_PC": val_pc,
-            "Caissons_Billets": caissons_billets,
-            "Caissons_Pieces": caissons_pieces,
+            "Nb_Caissons_60": nb_caissons_60,
+            "Nb_Caissons_80": nb_caissons_80,
+            "Nb_Caissons_100": nb_caissons_100,
+            "Val_Caissons_60": val_caissons_60,
+            "Val_Caissons_80": val_caissons_80,
+            "Val_Caissons_100": val_caissons_100,
+            "Caisson_Libre": caisson_libre,
             "Val_Caissons": val_caissons,
             "Total": total_constate,
             "Ecart": ecart,
