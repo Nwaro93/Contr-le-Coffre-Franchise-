@@ -31,45 +31,75 @@ def show_login_page():
     # CSS pour la page de connexion - Masquer TOUS les éléments Streamlit
     st.markdown("""
     <style>
-        /* Cacher COMPLETEMENT le menu Manage App et toolbar */
-        #MainMenu, footer, header,
-        [data-testid="stToolbar"],
-        [data-testid="manage-app-button"],
-        [data-testid="stDecoration"],
-        [data-testid="stStatusWidget"],
-        .stDeployButton,
-        div[data-testid="stToolbar"],
-        div[data-testid="stDecoration"],
-        div[data-testid="stStatusWidget"],
-        button[kind="header"],
-        .viewerBadge_container__r5tak,
-        .styles_viewerBadge__CvC9N,
-        ._profileContainer_gzau3_53,
-        ._profilePreview_gzau3_63,
-        [data-testid="baseButton-header"],
-        [data-testid="stHeader"],
-        .stAppDeployButton,
-        section[data-testid="stSidebar"] > div:first-child > div:first-child > div > div:last-child {
+        /* === MASQUER COMPLETEMENT LE BOUTON MANAGE APP === */
+        
+        /* Header complet */
+        header, 
+        header[data-testid="stHeader"],
+        [data-testid="stHeader"] {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
-            width: 0 !important;
-            overflow: hidden !important;
+            position: absolute !important;
+            top: -9999px !important;
         }
         
-        /* Forcer la suppression du header */
-        header[data-testid="stHeader"] {
+        /* Toolbar et boutons */
+        [data-testid="stToolbar"],
+        [data-testid="manage-app-button"],
+        [data-testid="stStatusWidget"],
+        [data-testid="stDecoration"],
+        [data-testid="baseButton-header"],
+        .stDeployButton,
+        .stAppDeployButton {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        /* Menu principal */
+        #MainMenu,
+        footer,
+        button[kind="header"] {
             display: none !important;
         }
         
-        /* Supprimer l'icone de menu en haut à droite */
-        .st-emotion-cache-zq5wmm {
-            display: none !important;
-        }
-        .st-emotion-cache-1wbqy5l {
+        /* Classes Streamlit Cloud specifiques */
+        .viewerBadge_container__r5tak,
+        .styles_viewerBadge__CvC9N,
+        .viewerBadge_link__qRIco,
+        ._profileContainer_gzau3_53,
+        ._profilePreview_gzau3_63,
+        .stAppViewBlockContainer [data-testid="stToolbar"] {
             display: none !important;
         }
         
+        /* Classes emotion-cache dynamiques */
+        .st-emotion-cache-zq5wmm,
+        .st-emotion-cache-1wbqy5l,
+        .st-emotion-cache-h4xjwg,
+        .st-emotion-cache-1avcm0n,
+        .st-emotion-cache-eczf16,
+        .st-emotion-cache-10trblm,
+        .st-emotion-cache-6qob1r {
+            display: none !important;
+        }
+        
+        /* Bouton hamburger et icones header */
+        button[kind="headerNoPadding"],
+        [data-testid="collapsedControl"],
+        .css-1rs6os,
+        .css-10trblm,
+        .css-1dp5vir,
+        .css-14xtw13 {
+            display: none !important;
+        }
+        
+        /* Supprimer tout le bloc en haut à droite */
+        .stApp > header {
+            display: none !important;
+        }
+        
+        /* === STYLES LOGIN === */
         .login-container {
             max-width: 400px;
             margin: 50px auto;
