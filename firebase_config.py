@@ -5,34 +5,33 @@ import json
 import os
 
 def init_firebase():
-    """Initialise la connexion Firebase"""
+    """Initialise la connexion Firebase (silencieux si non configuré)"""
     try:
         # Vérifier si Firebase est déjà initialisé
         if not firebase_admin._apps:
-            # Option 1: Utiliser les secrets Streamlit (pour déploiement)
-            if hasattr(st, 'secrets') and 'firebase' in st.secrets:
-                cred_dict = dict(st.secrets["firebase"])
-                cred = credentials.Certificate(cred_dict)
-            # Option 2: Utiliser un fichier local (pour développement)
-            elif os.path.exists("firebase_credentials.json"):
+            # Option 1: Utiliser un fichier local (pour développement)
+            if os.path.exists("firebase_credentials.json"):
                 cred = credentials.Certificate("firebase_credentials.json")
-            else:
-                st.error("⚠️ Configuration Firebase manquante!")
-                st.info("""
-                Pour configurer Firebase:
-                1. Créez un projet sur https://console.firebase.google.com
-                2. Allez dans Paramètres > Comptes de service
-                3. Générez une nouvelle clé privée
-                4. Sauvegardez le fichier JSON comme 'firebase_credentials.json'
-                """)
-                return None
+                firebase_admin.initialize_app(cred)
+                return firestore.client()
             
-            firebase_admin.initialize_app(cred)
+            # Option 2: Utiliser les secrets Streamlit (pour déploiement)
+            try:
+                if hasattr(st, 'secrets') and 'firebase' in st.secrets:
+                    cred_dict = dict(st.secrets["firebase"])
+                    cred = credentials.Certificate(cred_dict)
+                    firebase_admin.initialize_app(cred)
+                    return firestore.client()
+            except Exception:
+                pass
+            
+            # Firebase non configuré - mode hors ligne silencieux
+            return None
         
         return firestore.client()
     
-    except Exception as e:
-        st.error(f"Erreur Firebase: {str(e)}")
+    except Exception:
+        # Erreur silencieuse - retourne None pour utiliser le mode hors ligne
         return None
 
 def get_users_collection(db):
