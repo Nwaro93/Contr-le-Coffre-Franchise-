@@ -21,6 +21,13 @@ def show_login_page():
     # CSS pour la page de connexion
     st.markdown("""
     <style>
+        /* Cacher le menu Manage App sur la page de connexion */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        [data-testid="stToolbar"] {visibility: hidden;}
+        [data-testid="manage-app-button"] {display: none;}
+        
         .login-container {
             max-width: 400px;
             margin: 50px auto;
